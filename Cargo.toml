@@ -1,0 +1,15 @@
+[package]
+name = "encryption"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "encryption"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rand = "0.8"
+num-traits = "0.2"
+num-bigint = { version = "*", features = ["rand"] }
+pyo3 = { version = "0.19.0", features = ["num-bigint"] }
