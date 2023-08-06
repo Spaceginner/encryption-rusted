@@ -1,71 +1,76 @@
-use num_bigint::{BigUint, RandBigInt};
-use num_traits::Num;
+use crypto_bigint::{rand_core::OsRng, Encoding, NonZero, Random, Wrapping, U2048, U256};
 use pyo3::prelude::*;
-use rand::thread_rng;
 
 use std::borrow::Cow;
 
+const PRIME: Wrapping<U2048> = Wrapping(U2048::from_le_hex(
+    "\
+        FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1\
+        29024E088A67CC74020BBEA63B139B22514A08798E3404DD\
+        EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245\
+        E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED\
+        EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D\
+        C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F\
+        83655D23DCA3AD961C62F356208552BB9ED529077096966D\
+        670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B\
+        E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9\
+        DE2BCBF6955817183995497CEA956AE515D2261898FA0510\
+        15728E5A8AACAA68FFFFFFFFFFFFFFFF\
+    ",
+));
+
+fn modpow(mut b: Wrapping<U2048>, mut e: U256, mut m: Wrapping<U2048>) -> Wrapping<U2048> {
+    let mut r = Wrapping(U2048::ONE);
+
+    let m2 = NonZero::new(m.0.clone()).unwrap();
+
+    b %= &m2;
+
+    while e > U256::ZERO {
+        if e & U256::ONE == U256::ONE {
+            r *= &b;
+        }
+
+        b *= &m;
+        b %= &m2;
+        e >>= 1;
+    }
+
+    r
+}
+
 #[pyclass]
 pub struct DiffieHellman {
-    public_key: BigUint,
-    private_key: BigUint,
-    prime: BigUint,
+    public_key: Wrapping<U2048>,
+    private_key: U256,
 }
 
 #[pymethods]
 impl DiffieHellman {
     #[new]
     fn new() -> DiffieHellman {
-        let private_key = thread_rng().gen_biguint(256);
-        let generator = BigUint::from(2u8);
-        let prime = BigUint::from_str_radix(
-            "\
-            FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1\
-            29024E088A67CC74020BBEA63B139B22514A08798E3404DD\
-            EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245\
-            E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED\
-            EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D\
-            C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F\
-            83655D23DCA3AD961C62F356208552BB9ED529077096966D\
-            670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B\
-            E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9\
-            DE2BCBF6955817183995497CEA956AE515D2261898FA0510\
-            15728E5A8AAAC42DAD33170D04507A33A85521ABDF1CBA64\
-            ECFB850458DBEF0A8AEA71575D060C7DB3970F85A6E1E4C7\
-            ABF5AE8CDB0933D71E8C94E04A25619DCEE3D2261AD2EE6B\
-            F12FFA06D98A0864D87602733EC86A64521F2B18177B200C\
-            BBE117577A615D6C770988C0BAD946E208E24FA074E5AB31\
-            43DB5BFCE0FD108E4B82D120A92108011A723C12A787E6D7\
-            88719A10BDBA5B2699C327186AF4E23C1A946834B6150BDA\
-            2583E9CA2AD44CE8DBBBC2DB04DE8EF92E8EFC141FBECAA6\
-            287C59474E6BC05D99B2964FA090C3A2233BA186515BE7ED\
-            1F612970CEE2D7AFB81BDD762170481CD0069127D5B05AA9\
-            93B4EA988D8FDDC186FFB7DC90A6C08F4DF435C934063199\
-            FFFFFFFFFFFFFFFF\
-            ",
-            16,
-        )
-        .unwrap();
+        let private_key = U256::random(&mut OsRng);
+        let generator = Wrapping(U2048::from(2u8));
 
-        let public_key = generator.modpow(&private_key, &prime);
+        let public_key = modpow(generator, private_key, PRIME);
 
         DiffieHellman {
             public_key,
             private_key,
-            prime,
         }
     }
 
     #[getter]
     fn get_public_key(&self) -> Cow<[u8]> {
-        self.public_key.to_bytes_le().into()
+        self.public_key.0.to_le_bytes().to_vec().into()
     }
 
     fn shared_key(&self, other: Vec<u8>) -> Cow<[u8]> {
-        let public_key = BigUint::from_bytes_le(&other);
-        public_key
-            .modpow(&self.private_key, &self.prime)
-            .to_bytes_le()
+        let public_key = Wrapping(U2048::from_le_slice(&other));
+        modpow(public_key, self.private_key.clone(), PRIME)
+            .0
+            .to_le_bytes()
+            .to_vec()
             .into()
     }
 }

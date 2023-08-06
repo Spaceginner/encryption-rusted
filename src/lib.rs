@@ -1,6 +1,8 @@
+#![feature(portable_simd)]
 mod chacha;
 mod dh;
 mod poly1305;
+mod polybackend;
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
