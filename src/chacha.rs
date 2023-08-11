@@ -1,6 +1,7 @@
 // A Rust implementation of XChaCha20-Poly1305
 // This implementation defaults to 20 rounds
 use crate::poly1305::Poly1305;
+use crate::util::randbytes;
 use pyo3::exceptions::PyAssertionError;
 use pyo3::prelude::*;
 use std::borrow::Cow;
@@ -170,11 +171,11 @@ impl ChaCha20Poly1305 {
         poly1305.update(&aead_len.to_le_bytes(), false);
         poly1305.update(&ciphertext_len.to_le_bytes(), false);
 
-        if poly1305.tag() != tag {
-            return Err(PyAssertionError::new_err("Invalid MAC"));
+        if poly1305.verify(tag) {
+            return Ok(plaintext.to_vec());
         }
 
-        Ok(plaintext.to_vec())
+        Err(PyAssertionError::new_err("Invalid MAC"))
     }
 }
 
@@ -262,8 +263,14 @@ impl XChaCha20Poly1305 {
     }
 }
 
+#[pyfunction]
+fn keygen() -> Vec<u8> {
+    randbytes::<32>().to_vec()
+}
+
 #[pymodule]
 pub fn chacha(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(keygen, m)?)?;
     m.add_class::<ChaCha20Poly1305>()?;
     m.add_class::<XChaCha20Poly1305>()?;
     Ok(())

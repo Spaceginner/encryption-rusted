@@ -1,8 +1,6 @@
-use std::ptr;
-
-#[link(name = "poly1305")]
-extern {
+extern "C" {
     fn poly1305_auth(mac: *mut u8, m: *mut u8, bytes: isize, key: *mut u8);
+    fn poly1305_verify(mac1: *const u8, mac2: *const u8) -> u32;
 }
 
 fn pad16(length: usize) -> Vec<u8> {
@@ -41,5 +39,9 @@ impl Poly1305 {
             );
         }
         mac.to_vec()
+    }
+
+    pub fn verify(&self, other: &[u8]) -> bool {
+        unsafe { poly1305_verify(self.tag().as_ptr(), other.as_ptr()) == 1 }
     }
 }

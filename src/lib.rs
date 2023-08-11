@@ -1,7 +1,9 @@
-#![feature(portable_simd)]
+#![feature(lazy_cell)]
+#![feature(lazy_cell_consume)]
 mod chacha;
 mod dh;
 mod poly1305;
+mod util;
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
