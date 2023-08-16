@@ -98,7 +98,7 @@ fn crypto_scalarmult_curve25519(n: &[u8], p: &[u8]) -> Vec<u8> {
 
 #[pyfunction]
 fn keygen() -> Vec<u8> {
-    let mut bytes = randbytes::<32>();
+    let mut bytes = randbytes::<4>();
     bytes[0] &= 248;
     bytes[31] &= 127;
     bytes[31] |= 64;

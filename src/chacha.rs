@@ -265,7 +265,7 @@ impl XChaCha20Poly1305 {
 
 #[pyfunction]
 fn keygen() -> Vec<u8> {
-    randbytes::<32>().to_vec()
+    randbytes::<4>().to_vec()
 }
 
 #[pymodule]
